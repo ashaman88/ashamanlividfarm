@@ -1,0 +1,752 @@
+///////////////////////////////////////////////////////////////////////
+//                                                                   //
+//          READ THE DIRECTIONS IN THE OP FIRST OR ELSE              //
+//           Make sure you have setup your player file               //
+//                  Under SRL>PlayerManager                          //
+//                       Press Play                                  //
+//                                                                   //
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////
+Program AshamanHerblore;
+
+  {$DEFINE SMART}
+  {$I SRL-6/SRL.Simba}
+  {$i srl-6/lib/misc/srlplayerform.simba}
+
+Const
+  ScriptVersion = '1.0';
+
+
+  Debug = False;
+
+Var
+  ItemCount,XP,StartingExperience,StartingXP,ItemsPH,XPH,Bir,Bfr: Integer;
+  Timeout,CurrentBTime,ProgTime: TTimeMarker;
+  W,X,Y,Z,RealBTime,BreakRounds,TotalBreaks: Integer;
+  CHECK_PATTERN_REGULAR, CHECK_PATTERN_BACKWARDS, CHECK_PATTERN_SNAKE, CHECK_PATTERN_UP_DOWN:   TIntegerArray;
+
+
+function TRSChatBox.getXP: Integer;
+var
+  b: TBox;
+  s: String;
+  tpa : TPointArray;
+  atpa : T2DPointArray;
+  i,cts,p: Integer;
+begin
+  b := self.getBounds();
+  b.edit(+(b.x2-b.x1)-140, +10, -5, -94);
+
+  findColorsTolerance(tpa, 14013909, b, 4,colorSetting(2, 0.00, 0.00));
+
+  if length(tpa) < 2 then
+  begin
+    print('chatBox.getXP(): No XP found', TDebug.SUB);
+    Exit;
+  end;
+
+  atpa := tpa.cluster(10);
+  atpa.sortFromFirstPoint(point(b.x2,b.y2));
+
+  b:= atpa[low(atpa)].getbounds;
+  b.edit(-2,-2,+2,+3);
+
+  s:=Replace(tesseractgettext(b.x1,b.y1,b.x2,b.y2, FILTER_SMALL_CHARS), ' ', '', [rfReplaceAll]);
+
+  P := Pos('x', S);
+  if P > 0 then
+    Result := StrToIntDef(ExtractFromStr(Copy(s, P, Length(S)), Numbers), 0)
+  else
+    Result := StrToIntDef(ExtractFromStr(S, Numbers), 0);
+
+  print('chatBox.getXP(): XP found: ' + tostr(result), TDebug.SUB);
+end;
+
+ {*******************************************************************************
+Function AutoupdateMe;
+By: Shuttleu
+Edited By: Ashaman88
+Description: Autoupdates Script.
+*******************************************************************************}
+Procedure AutoUpdateMe;
+Var
+  Neifile: Integer;
+  OnlineVersion, NewScript, NeiFeilNennen: String;
+Begin
+  Writeln('Checking for script updates...');
+  OnlineVersion := GetPage('http://ashamanggzzlrcminer.googlecode.com/git/Version.txt');
+  Writeln('Online Version: '+ToStr(OnlineVersion));
+  Writeln('Local Version: '+ToStr(ScriptVersion));
+  If (trim(OnlineVersion) > ScriptVersion) Then
+  Begin
+    WriteLn('Newer script version online!');
+    WriteLn('Autoupdating to newer version.');
+    NewScript := GetPage('http://ashamanggzzlrcminer.googlecode.com/git/AshamanggzzLRC.simba');
+    NeiFeilNennen := ScriptPath+ 'LRC Miner V'+OnlineVersion+' by A&B.simba';
+    Neifile := Rewritefile(NeiFeilNennen, true);
+    Try
+      WriteFileString(Neifile, NewScript);
+    Except
+      Begin
+        WriteLn('Fatal error writing to '+NeiFeilNennen+'!!');
+        Terminatescript;
+      End;
+    End;
+    CloseFile(Neifile);
+    WriteLn('New script downloaded to '+NeiFeilNennen+'!! Please use this one!!');
+    TerminateScript;
+  End Else
+    WriteLn('You have the latest version of the script!');
+End;
+
+Function FindNormalRandoms: Boolean;
+Begin
+  Result:= ExitSquealOfFortune Or ClaimSpinTicket;
+End;
+
+Procedure QuickBoxSort(var A: TIntegerArray; var B: TBoxArray; iLo, iHi: Integer; SortUp: Boolean);
+Var
+  Lo, Hi, Mid, T: Integer;
+  TP: TBox;
+Begin
+  If (Length(A) <> Length(B)) Then
+    Exit;
+  Lo := iLo;
+  Hi := iHi;
+  Mid := A[(Lo + Hi) shr 1];
+  Repeat
+    If SortUp Then
+    Begin
+      While (A[Lo] < Mid) Do Inc(Lo);
+      While (A[Hi] > Mid) Do Dec(Hi);
+    End Else
+    Begin
+      While (A[Lo] > Mid) Do Inc(Lo);
+      While (A[Hi] < Mid) Do Dec(Hi);
+    End;
+    If (Lo <= Hi) Then
+    Begin
+      T := A[Lo];
+      A[Lo] := A[Hi];
+      A[Hi] := T;
+      TP := B[Lo];
+      B[Lo] := B[Hi];
+      B[Hi] := TP;
+      Inc(Lo);
+      Dec(Hi);
+    End;
+  Until Lo > Hi;
+  If (Hi > iLo) Then QuickBoxSort(A, B, iLo, Hi, SortUp);
+  If (Lo < iHi) Then QuickBoxSort(A, B, Lo, iHi, SortUp);
+End;
+
+
+{*
+  Sorts A TBoxArray by Mid-Point. Closest OverallBox by Midpoint to the From-Point First.
+*}
+Procedure MidSortBoxArrayFrom(Var BoxArray: TBoxArray; Const From: TPoint);
+Var
+   I,L: Integer;
+   Mid: TPoint;
+   DistArr: TIntegerArray;
+Begin
+  L := High(BoxArray);
+  If (L < 0) Then
+    Exit;
+  SetLength(DistArr, L + 1);
+
+  For I := 0 To L Do
+  Begin
+    Mid := MiddleBox(BoxArray[I]);
+    DistArr[I] := Round(Sqr(From.X - Mid.X) + Sqr(From.Y - Mid.Y));
+  End;
+
+  QuickBoxSort(DistArr,BoxArray,0,l,True);
+End;
+
+procedure declarePlayers();
+var
+  i,j: integer;
+begin
+  players.setup(playerForm.playerNames, playerForm.playerFile); // load the SPF players from the SRL Player Manager
+  currentPlayer := 0;                                           // player to use first
+
+  // set player attributes based on the settings from the form
+  for i := 0 to high(players) do
+    with players[i] do
+    begin
+      // convert the integers
+      integers[0] := strToInt(playerForm.players[i].settings[0]);  //minutes until break
+      integers[1] := strToInt(playerForm.players[i].settings[1]);  //minutes to break
+
+      World :=  strToInt(playerForm.players[i].settings[2]);                    //world
+
+
+      // booleans
+      booleans[0] := strToBool(playerForm.players[i].settings[3]);
+      booleans[1] := strToBool(playerForm.players[i].settings[4]);
+      FindMod := strToBool(playerForm.players[i].settings[5]);
+
+      // any other data types you've decided to use
+      strings[0] := playerForm.players[i].settings[6]; //graphics
+    end;
+end;
+
+// initiates the SRL player form (you aren't restricted to the procedure name; it can be whatever you want)
+procedure initPlayerForm();
+begin
+  with playerForm do
+  begin
+    name := 'AshamanLividFarm v'+toStr(ScriptVersion); // the title of the SPF, usually the name of your script
+    scriptHelpThread := '';           // a link to a help thread, if set to '' will link to my setup guide
+    scriptSettingsPath := '';         // where you want the settings file to be saved; saved in script's path by default
+
+    editBoxLabels := ['Minutes until Break', '# of Minutes to Break', 'World']; // edit boxes are created for each array element
+    editBoxDefaults := ['600', '15','0'];                                             // optional default values for each edit box; array length must equal editBoxLabel length
+    checkBoxLabels := ['Take Breaks', 'Switch Worlds (After Break)', 'Logout if Mod is near'];        // same as editBoxLabels but for check boxes
+    checkBoxDefaults := ['True','True','True'];
+
+    comboBoxLabels := ['GraphicsMode'];                                                // same as editBoxLabels but for combo boxes (drop down boxes)
+    comboBoxDefaults := ['OpenGL'];
+
+    // this needs to be done for every element in the comboBoxLabels array
+    setLength(comboBoxItems, length(comboBoxLabels));
+    comboBoxItems[0] := ['OpenGL', 'DirectX'];
+  end;
+end;
+
+Function BreakHandler(BreakIn, BreakFor, randBreakIn, randBreakFor: Integer): Boolean;
+Var
+  H,M,S: Integer;
+Begin
+  If Not IsLoggedIn Then
+    Exit;
+
+  If (GetTimeRunning < ((W) + (Y) + BreakRounds)) Then
+    Exit Else
+    If (GetTimeRunning > ((W) + (Y) + BreakRounds)) Then
+    Begin
+      RealBTime := Round((X+Z)/60000);
+      Writeln('Taking a break for about ' + IntToStr(RealBTime) + ' minutes.');
+      Players[CurrentPlayer].Logout;
+      CurrentBTime.Reset;
+      CurrentBTime.Start;
+      Repeat
+        Wait(21000);
+        ConvertTime((X+Z)-CurrentBTime.GetTime,H,M,S);
+        Writeln('Breaktime left: '+IntToStr(H)+':'+IntToStr(M)+':'+IntToStr(S));
+      Until(CurrentBTime.GetTime>(X+Z));
+      Writeln('Logging in.');
+      If Players[CurrentPlayer].booleans[1] Then
+        Players[CurrentPlayer].World := 0;
+      Players[CurrentPlayer].Login;
+      Wait(4000);
+      Timeout.Start;
+      Result := IsLoggedIn;
+      Minimap.ClickCompass;
+      MainScreen.SetAngle(MS_ANGLE_HIGH);
+      IncEx(BreakRounds, (W) + (X));
+      Inc(TotalBreaks);
+      Writeln('The next break will occur in about ' + IntToStr(BreakIn) + ' minutes.');
+      W := (BreakIn * 60000);
+      X := (BreakFor * 60000);
+      Y := RandomRange(-BIR * 60000, BIR * 60000);
+      Z := RandomRange(-BFR * 60000, BFR * 60000);
+    End;
+End;
+
+Function SetGrid: TBoxArray;
+Begin
+  result := grid(5, 3, 48, 50, 56, 70, point(180,111));
+End;
+
+
+Function LividMenu: Boolean;
+Var
+  P: TPoint;
+Begin
+  Result := FindText(p, ['train'], ['SmallChars'], TabBackpack.GetBounds);
+End;
+
+Function FindLivid(SearchBox: TBox; Var X,Y: Integer): Boolean;
+Var
+  H,I,J: Integer;
+  PlantBox: TBox;
+  TPA,TPA2: TPointArray;
+  ATPA: T2DPointArray;
+  TBA: TBoxArray;
+  P: TPoint;
+Begin
+  findColorsTolerance(tpa, 2368542, SearchBox, 5,colorSetting(2,10.00,1.08));    //blackpart
+
+  ATPA := TPA.Cluster(15,25);
+
+  SetLength(TPA,0);
+
+  atpa.filterBetween(0, 20);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    Print('No black found.');
+    Exit;
+  End;
+
+  H := High(ATPA);
+
+  For I:= 0 To H Do
+  Begin
+    Print('BlackPlant Length: '+ToStr(Length(atpa[i]))+' for I:= '+ToStr(I));
+
+    PlantBox := GetTPABounds(ATPA[I]);
+    PlantBox.Edit(-10,-10,+10,+10);
+    PlantBox.SetLimit(Mainscreen.GetBounds);
+
+    With PlantBox Do
+    Begin
+      If Not IsLoggedIn Then
+        Exit;
+
+      findColorsTolerance(tpa, 9469095, PlantBox, 15,colorSetting(2,0.39,0.89));    //deadflower
+
+      Print('DeadFlower Length: '+ToStr(Length(tpa))+' for I:= '+ToStr(I));
+
+      If Length(TPA) > 5 Then
+      Begin
+        SmartImage.DebugTPA(ATPA[I]);
+        SetLength(TPA,0);
+        P:=MiddleTPA(ATPA[I]);
+        Print(ToStr(P));
+        J:=ATPA[I].ReturnPosInArray(P);
+        Print(ToStr(J));
+        If (Length(ATPA[I])>6) And (J>=0) Then
+          P:=ATPA[I][GaussRangeInt(J-2,J+3)];
+
+        If (ChooseOption.OptionsExist(['Exam','mine','Examine','Canc','ncel','Cancel'],400)) Then
+        Begin
+          Print('Closing options menu');
+          MouseBox(TabBackpack.GetBounds);
+        End;
+
+        MissMouse(P);
+
+        If (IsMouseOverText(['Cure','seased','ivid','-plan'])) Then
+        Begin
+          GetMousePos(X,Y);
+          Print('Found chest, Clicking.');
+          if (random(5) = 1) then
+          begin
+            fastClick(MOUSE_RIGHT);
+
+            if (not chooseOption.select(['Cure', '-pl', 'plant'])) then
+              continue;
+          end else
+            fastClick(MOUSE_LEFT);
+
+          result := waitFunc(@LividMenu,100,(randomRange(2500, 4000)));
+          if result then
+          begin
+            SetLength(ATPA,0);
+            Exit;
+          end;
+        End;
+      End;
+      SetLength(TPA,0);
+    End;
+  End;
+  SetLength(ATPA,0);
+End;
+
+Function PlantPresent(SearchBox: TBox): Boolean;
+Var
+  TPA: TPointArray;
+Begin
+  findColorsTolerance(tpa, 3624517, SearchBox, 8,colorSetting(2,0.38,0.70));    //GREEN
+
+  If (Length(TPA) > 7) Then
+  Begin
+    Print('PlantPresent. '+ToStr(Length(TPA)));
+    SetLength(TPA,0);
+    Exit(True);
+  End;
+End;
+
+Function FindSoil(SearchBox: TBox): Boolean;
+Var
+  H,I: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+  T: TTimeMarker;
+  B: TBox;
+Begin
+  If PlantPresent(SearchBox) Then
+    Exit;
+
+  SmartImage.Clear;
+
+  findColorsTolerance(tpa, 5403777, SearchBox, 4,colorSetting(2,0.09,0.17));    //soil
+
+  ATPA := TPA.Cluster(4,4);
+
+  SetLength(TPA,0);
+
+  atpa.filterBetween(0, 20);
+  atpa.sortFromFirstPoint(SearchBox.getMiddle);
+
+  If (Length(ATPA) = 0) Then
+  Begin
+    Print('No black found.');
+    Exit;
+  End;
+
+  SmartImage.DebugTPA(ATPA[0]);
+
+  H := High(ATPA);
+
+  For I:= 0 To H Do
+  Begin
+    Print('Soil Length: '+ToStr(Length(atpa[i]))+' for I:= '+ToStr(I));
+    B:=GetTPABounds(ATPA[I]);
+    If ((B.X2-B.X1)>6) And ((B.Y2-B.Y1)>6) Then
+      B.Edit(+3,+3,-3,-3);
+    MouseBox(B);
+
+    If (IsMouseOverText(['ertili','Empty','atch','patc'])) Then
+    Begin
+      Print('Found chest, Clicking.');
+      if (random(5) = 1) then
+      begin
+        fastClick(MOUSE_RIGHT);
+
+        if (not chooseOption.select(['ertili', 'Fert', 'ilise'])) then
+          continue;
+      end else
+        fastClick(MOUSE_LEFT);
+
+      T.Start;
+      Repeat
+        Result:=PlantPresent(SearchBox);
+        If Not IsLoggedIn Then
+          Exit;
+        Wait(RandomRange(100,400));
+      Until (Result) Or (T.GetTime>6000);
+      Wait(RandomRange(800,1200));
+      If Result Then
+      Begin
+        Inc(ItemCount);
+        Timeout.Start;
+        Exit;
+      End;
+    End;
+  End;
+End;
+
+
+Function GetLividType(X, Y: Integer): TBox;
+Var
+  PlantBox: TBoxArray;
+  I: Integer;
+Begin
+  PlantBox:=SetGrid;
+
+  For I:=0 To High(PlantBox) Do
+    If PointInBox(Point(X,Y),PlantBox[I]) Then
+      Break;
+
+  Case I Of
+    0,1,2,4: Result:=[595,369,662,454];
+    3,7,8,9: Result:=[695,366,758,454];
+    6,10,14: Result:=[599,487,665,570];
+    5,11,12,13: Result:=[688,484,755,570];
+  End;
+End;
+
+
+
+Function CureLivid(Strain: Tbox): Boolean;
+Var
+  T:TTimeMarker;
+Begin
+  MouseBox(Strain,Mouse_Left);
+  T.Start;
+  Repeat
+    Result:=Not LividMenu;
+    If Not IsLoggedIn Then
+      Exit;
+    Wait(RandomRange(100,400));
+  Until (Result) Or (T.GetTime>6000);
+  Wait(RandomRange(800,1200));
+  If Result Then
+  Begin
+    Inc(ItemCount);
+    Timeout.Start;
+  End;
+End;
+
+
+
+Function CastSpells: Boolean;
+Var
+  CheckPattern: TIntegerArray;
+  FarmGrid: TBoxArray;
+  I,L,X,Y: Integer;
+  Closest: Boolean;
+Label
+  Rpt;
+Begin
+  Case GaussRangeInt(0,75) Of
+    0..15: CheckPattern:=CHECK_PATTERN_SNAKE;
+    16..29: CheckPattern:=CHECK_PATTERN_REGULAR;
+    30..44: Closest:= True;
+    45..59: CheckPattern:=CHECK_PATTERN_BACKWARDS;
+    60..75: CheckPattern:=CHECK_PATTERN_UP_DOWN;
+  End;
+
+  Print(ToStr(CheckPattern));
+  L:=Length(CheckPattern);
+  FarmGrid:=SetGrid;
+
+  If (Closest) Then
+  Begin
+    Rpt:
+    SmartImage.Clear;
+    GetMousePos(X,Y);
+    MidSortBoxArrayFrom(FarmGrid,Point(X,Y));
+    For I:=0 To High(FarmGrid) Do
+    Begin
+      If Debug Then
+        SmartImage.DrawBox(FarmGrid[I]);
+      Wait(Random(100));
+      If FindLivid(FarmGrid[I],X,Y) Then
+        If CureLivid(GetLividType(X,Y)) Then
+        Begin
+          Result:=(True);
+          GoTo Rpt;
+        End;
+      If FindSoil(FarmGrid[I]) Then
+      Begin
+        Result:=(True);
+        GoTo Rpt;
+      End;
+    End;
+  End;
+
+  For I:=0 To (L-1) Do
+  Begin
+    SmartImage.Clear;
+    Print(ToStr(CheckPattern[I]-1));
+    If Debug Then
+      SmartImage.DrawBox(FarmGrid[CheckPattern[I]-1]);
+    Wait(Random(100));
+    If FindLivid(FarmGrid[CheckPattern[I]-1],X,Y) Then
+      If CureLivid(GetLividType(X,Y)) Then
+      Begin
+        Result:=True;
+        Continue;
+      End;
+    If FindSoil(FarmGrid[CheckPattern[I]-1]) Then
+      Result:=True;
+  End;
+  SmartImage.Clear;
+End;
+
+Procedure Antiban;
+Var
+  I: Integer;
+Begin
+  SmartImage.Clear;
+  I := Random(600);
+  Case I Of
+    1: boredHuman(false);
+    2..7:
+      Begin
+        hoverSkill(Skill_Farming);
+        Wait(GaussRangeInt(600,2000));
+        TabBackpack.Open;
+      End;
+    8..50: mouseMovingObject;
+    51..100: SleepAndMoveMouse(GaussRangeInt(100,5000));
+    101..400:
+      Begin
+        MouseOffClient(Random(4));
+        Wait(GaussRangeInt(0, 10000));
+      End;
+    501..600: Wait(GaussRangeInt(0, 2000));
+
+  End;
+  Wait(GaussRangeInt(0, 2000));
+End;
+
+Procedure ProgressReport;
+Var
+  TTB: Integer;
+Begin
+  If ProgTime.GetTime < 20000 Then
+    Exit;
+
+  If Not Debug Then
+    ClearDebug;
+
+  TTB := (((W) + (Y) + BreakRounds)-GetTimeRunning);
+
+  XP := (ChatBox.GetXP - StartingXP);
+  XPH := Round(XP * (3600.0 / (GetTimeRunning / 1000.0)));
+  ItemsPH := Round((ItemCount * (3600.0 / (GetTimeRunning / 1000.0))));
+
+  writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
+  writeln('|                  AshamanLividFarm v'+PadR(toStr(ScriptVersion), 23), '|');
+  writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
+  writeln(PadR('| Running For: '+TimeRunning, 60)+'|');
+  writeln(PadR('| Spell''s Cast: ' + GroupDigits(ItemCount,','), 40) + padR('Cast''s/H: ' + GroupDigits(ItemsPH,','), 20) + '|');
+  writeln(PadR('| Exp Earned: ' + GroupDigits(XP,','), 40) + padR('Exp/Hour: ' + GroupDigits(XPH,','), 20) + '|');
+  writeln('|___________________________________________________________|');
+  writeln('|___________________________________________________________|');
+
+  If Players[CurrentPlayer].Booleans[0] Then
+    Writeln('Time until break: '+MsToTime(TTB, Time_Bare));
+
+  ProgTime.Start;
+End;
+
+Procedure Setup;
+Begin
+  ClearDebug;
+ // AutoUpdateMe;
+
+  SmartEnableDrawing := True;
+  SRL_Events[EVENT_ANTIBAN] := @Antiban;
+
+  initPlayerForm(); // initiate your settings
+  runPlayerForm();  // run the form
+
+  // use this so the script doesn't continue if the user exits out of the form
+  if (not playerForm.isScriptReady) then
+    terminatescript;
+
+  declarePlayers();
+
+  If Players[CurrentPlayer].strings[0] = 'DirectX' Then
+    smartPlugins := ['OpenGL32.dll','d3d9.dll'];
+
+  SetupSRL;
+
+  If Not IsLoggedIn Then
+  Begin
+    If Not Players[CurrentPlayer].Login Then
+      TerminateScript;
+
+    Writeln('Just loggedin, waiting a bit');
+    Wait(RandomRange(6000,10000));
+  End;
+
+  If Not Debug Then
+    DisableSRLDebug:=True;
+  ClearDebug;
+
+  Minimap.ClickCompass;
+  MainScreen.SetAngle(MS_ANGLE_HIGH);
+  FindNormalRandoms;
+
+  Timeout.Start;
+  ProgTime.Start;
+
+  Bir:= 13;      // ***Random minutes to add/subtract from how long until we break***
+  Bfr:= 7;       // ***Random minutes to add/subjtract from break duraction***
+
+  W := (Players[CurrentPlayer].Integers[0] * 60000);
+  X := (Players[CurrentPlayer].Integers[1] * 60000);
+  Y := RandomRange(-BIR * 60000, BIR * 60000);
+  Z := RandomRange(-BFR * 60000, BFR * 60000);
+
+  CHECK_PATTERN_REGULAR:= [1..15];
+  CHECK_PATTERN_SNAKE:= [1, 2, 3, 4, 5, 10, 9, 8, 7, 6, 11, 12, 13, 14, 15];
+  CHECK_PATTERN_UP_DOWN:= [1, 6, 11, 12, 7, 2, 3, 8, 13, 14, 9, 4, 5, 10, 15];
+  CHECK_PATTERN_BACKWARDS:=CHECK_PATTERN_REGULAR;
+  CHECK_PATTERN_BACKWARDS.Invert;
+
+  If conversationBox.continue(true, true) Then
+    Wait(RandomRange(3000,2000));
+
+  StartingXP:=ChatBox.GetXP;
+End;
+
+
+Procedure MainLoop;
+Begin
+  If chatbox.findAnyText(['do not']) Then
+  Begin
+    Writeln('Found a bad chat message, shutting down');
+    TerminateScript;
+  End;
+
+  If Not CastSpells Then
+    AntiBan;
+
+  If Not IsLoggedIn Then
+  Begin
+    Wait(5000);
+    DisableSRLDebug:=False;
+     If Not Players[CurrentPlayer].Login Then
+        TerminateScript;
+    Minimap.ClickCompass;
+    MainScreen.SetAngle(MS_ANGLE_HIGH);
+    If Not Debug Then
+      DisableSRLDebug:=True;
+    Timeout.Start;
+  End;
+
+  If Timeout.GetTime>300000 Then
+  Begin
+    Writeln('Nothing has happened for too long, shutting down!- took a screenshot, send pic to ashaman (in the logs folder)');
+    TakeScreenshot('FarmFail.png');
+    TerminateScript;
+  End;
+
+  If Players[CurrentPlayer].Booleans[0] Then
+    BreakHandler(Players[CurrentPlayer].Integers[0],Players[CurrentPlayer].Integers[1],Bir,Bfr);
+
+  ProgressReport;
+End;
+
+begin
+  Setup;
+  While (Players.GetActive() > 0) Do
+    Mainloop;
+end.
