@@ -598,7 +598,7 @@ Begin
   SmartImage.Clear;
   I := Random(600);
   Case I Of
-    1: boredHuman(false);
+    1: boredHuman(true);
     2..7:
       Begin
         hoverSkill(Skill_Farming);
