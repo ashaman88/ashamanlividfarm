@@ -58,7 +58,7 @@ Const
   Debug = False;
 
 Var
-  ItemCount,XP,StartingExperience,StartingXP,ItemsPH,XPH,Bir,Bfr: Integer;
+  FCount,CCount,MageXP,FarmXP,StartingExperience,StartingXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr: Integer;
   Timeout,CurrentBTime,ProgTime: TTimeMarker;
   W,X,Y,Z,RealBTime,BreakRounds,TotalBreaks: Integer;
   CHECK_PATTERN_REGULAR, CHECK_PATTERN_BACKWARDS, CHECK_PATTERN_SNAKE, CHECK_PATTERN_UP_DOWN:   TIntegerArray;
@@ -112,15 +112,15 @@ Var
   OnlineVersion, NewScript, NeiFeilNennen: String;
 Begin
   Writeln('Checking for script updates...');
-  OnlineVersion := GetPage('http://ashamanggzzlrcminer.googlecode.com/git/Version.txt');
+  OnlineVersion := GetPage('http://ashamanlividfarm.googlecode.com/git/Version.txt');
   Writeln('Online Version: '+ToStr(OnlineVersion));
   Writeln('Local Version: '+ToStr(ScriptVersion));
   If (trim(OnlineVersion) > ScriptVersion) Then
   Begin
     WriteLn('Newer script version online!');
     WriteLn('Autoupdating to newer version.');
-    NewScript := GetPage('http://ashamanggzzlrcminer.googlecode.com/git/AshamanggzzLRC.simba');
-    NeiFeilNennen := ScriptPath+ 'LRC Miner V'+OnlineVersion+' by A&B.simba';
+    NewScript := GetPage('http://ashamanlividfarm.googlecode.com/git/AshamanLividFarm.simba');
+    NeiFeilNennen := ScriptPath+ 'AshamanLividFarm V'+OnlineVersion+'.simba';
     Neifile := Rewritefile(NeiFeilNennen, true);
     Try
       WriteFileString(Neifile, NewScript);
@@ -295,7 +295,7 @@ End;
 
 Function SetGrid: TBoxArray;
 Begin
-  result := grid(5, 3, 48, 50, 56, 70, point(180,111));
+  result := grid(5, 3, 48, 50, 56, 70, point(145,111));
 End;
 
 
@@ -470,7 +470,9 @@ Begin
       Wait(RandomRange(800,1200));
       If Result Then
       Begin
-        Inc(ItemCount);
+        Inc(FCount);
+        IncEx(MageXP,87);
+        IncEx(FarmXP,92);
         Timeout.Start;
         Exit;
       End;
@@ -515,7 +517,9 @@ Begin
   Wait(RandomRange(800,1200));
   If Result Then
   Begin
-    Inc(ItemCount);
+    Inc(CCount);
+    IncEx(MageXP,60);
+    IncEx(FarmXP,92);
     Timeout.Start;
   End;
 End;
@@ -626,17 +630,20 @@ Begin
 
   TTB := (((W) + (Y) + BreakRounds)-GetTimeRunning);
 
-  XP := (ChatBox.GetXP - StartingXP);
-  XPH := Round(XP * (3600.0 / (GetTimeRunning / 1000.0)));
-  ItemsPH := Round((ItemCount * (3600.0 / (GetTimeRunning / 1000.0))));
+  MXPH := Round(MageXP * (3600.0 / (GetTimeRunning / 1000.0)));
+  FXPH := Round(FarmXP * (3600.0 / (GetTimeRunning / 1000.0)));
+
+  CCPH := Round((CCount * (3600.0 / (GetTimeRunning / 1000.0))));
+  FCPH := Round((FCount * (3600.0 / (GetTimeRunning / 1000.0))));
 
   writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
   writeln('|                  AshamanLividFarm v'+PadR(toStr(ScriptVersion), 23), '|');
   writeln('|=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=|');
   writeln(PadR('| Running For: '+TimeRunning, 60)+'|');
-  writeln(PadR('| Spell''s Cast: ' + GroupDigits(ItemCount,','), 40) + padR('Cast''s/H: ' + GroupDigits(ItemsPH,','), 20) + '|');
-  writeln(PadR('| Exp Earned: ' + GroupDigits(XP,','), 40) + padR('Exp/Hour: ' + GroupDigits(XPH,','), 20) + '|');
-  writeln('|___________________________________________________________|');
+  writeln(PadR('| Plants Cured: ' + GroupDigits(CCount,','), 35) + padR('Cured/H: ' + GroupDigits(CCPH,','), 25) + '|');
+  writeln(PadR('| Patches Planted: ' + GroupDigits(FCount,','), 35) + padR('Planted/H: ' + GroupDigits(FCPH,','), 25) + '|');
+  writeln(PadR('| MageXP Earned: ' + GroupDigits(MageXP,','), 35) + padR('MageXP/Hour: ' + GroupDigits(MXPH,','), 25) + '|');
+  writeln(PadR('| FarmXP Earned: ' + GroupDigits(FarmXP,','), 35) + padR('FarmXP/Hour: ' + GroupDigits(FXPH,','), 25) + '|');
   writeln('|___________________________________________________________|');
 
   If Players[CurrentPlayer].Booleans[0] Then
