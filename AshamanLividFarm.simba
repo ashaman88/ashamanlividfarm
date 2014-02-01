@@ -737,6 +737,7 @@ Begin
     If Not Debug Then
       DisableSRLDebug:=True;
     Timeout.Start;
+    FindNormalRandoms;
   End;
 
   If Timeout.GetTime>300000 Then
