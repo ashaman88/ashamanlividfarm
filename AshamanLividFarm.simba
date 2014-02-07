@@ -52,53 +52,16 @@ Program AshamanHerblore;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 Const
-  ScriptVersion = '1.0';
+  ScriptVersion = '1.1';
 
 
   Debug = False;
 
 Var
-  FCount,CCount,MageXP,FarmXP,StartingExperience,StartingXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr: Integer;
+  FCount,CCount,MageXP,FarmXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr: Integer;
   Timeout,CurrentBTime,ProgTime: TTimeMarker;
   W,X,Y,Z,RealBTime,BreakRounds,TotalBreaks: Integer;
   CHECK_PATTERN_REGULAR, CHECK_PATTERN_BACKWARDS, CHECK_PATTERN_SNAKE, CHECK_PATTERN_UP_DOWN:   TIntegerArray;
-
-
-function TRSChatBox.getXP: Integer;
-var
-  b: TBox;
-  s: String;
-  tpa : TPointArray;
-  atpa : T2DPointArray;
-  i,cts,p: Integer;
-begin
-  b := self.getBounds();
-  b.edit(+(b.x2-b.x1)-140, +10, -5, -94);
-
-  findColorsTolerance(tpa, 14013909, b, 4,colorSetting(2, 0.00, 0.00));
-
-  if length(tpa) < 2 then
-  begin
-    print('chatBox.getXP(): No XP found', TDebug.SUB);
-    Exit;
-  end;
-
-  atpa := tpa.cluster(10);
-  atpa.sortFromFirstPoint(point(b.x2,b.y2));
-
-  b:= atpa[low(atpa)].getbounds;
-  b.edit(-2,-2,+2,+3);
-
-  s:=Replace(tesseractgettext(b.x1,b.y1,b.x2,b.y2, FILTER_SMALL_CHARS), ' ', '', [rfReplaceAll]);
-
-  P := Pos('x', S);
-  if P > 0 then
-    Result := StrToIntDef(ExtractFromStr(Copy(s, P, Length(S)), Numbers), 0)
-  else
-    Result := StrToIntDef(ExtractFromStr(S, Numbers), 0);
-
-  print('chatBox.getXP(): XP found: ' + tostr(result), TDebug.SUB);
-end;
 
  {*******************************************************************************
 Function AutoupdateMe;
@@ -321,7 +284,7 @@ Begin
 
   SetLength(TPA,0);
 
-  atpa.filterBetween(0, 20);
+  atpa.filterBetween(0, 15);
 
   If (Length(ATPA) = 0) Then
   Begin
@@ -711,7 +674,7 @@ Begin
   If conversationBox.continue(true, true) Then
     Wait(RandomRange(3000,2000));
 
-  StartingXP:=ChatBox.GetXP;
+  Mainscreen.setZoom(true);
 End;
 
 
