@@ -52,16 +52,17 @@ Program AshamanHerblore;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 Const
-  ScriptVersion = '1.1';
+  ScriptVersion = '1.2';
 
 
   Debug = False;
 
 Var
-  FCount,CCount,MageXP,FarmXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr: Integer;
+  FCount,CCount,MageXP,FarmXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr,CheckX: Integer;
   Timeout,CurrentBTime,ProgTime: TTimeMarker;
   W,X,Y,Z,RealBTime,BreakRounds,TotalBreaks: Integer;
   CHECK_PATTERN_REGULAR, CHECK_PATTERN_BACKWARDS, CHECK_PATTERN_SNAKE, CHECK_PATTERN_UP_DOWN:   TIntegerArray;
+  GridSet: TBoxArray;
 
  {*******************************************************************************
 Function AutoupdateMe;
@@ -257,8 +258,45 @@ Begin
 End;
 
 Function SetGrid: TBoxArray;
+Var
+  I,J: Integer;
+  TPA: TPointArray;
+  ATPA: T2DPointArray;
+  B: TBox;
+  TBA: Array of TBoxArray;
 Begin
-  result := grid(5, 3, 48, 50, 56, 70, point(145,111));
+   If Not IsLoggedIn Then
+    Exit;
+  //If (Length(GridSet) = 0) Or (GridSet[0].X1<>CheckX) Then
+  Begin
+    findColorsTolerance(tpa, 6386047, Mainscreen.GetBounds, 2,colorSetting(2,0.28,0.24));    //border
+
+    ATPA := TPA.Cluster(200,25);
+
+    SetLength(TPA,0);
+    SetLength(TBA,3);
+
+    For I:=0 To Min(High(ATPA),2) Do
+    Begin
+      B:= ATPA[I].GetBounds;
+      B.Edit(-3,-5,+3,+5);
+      TBA[I]:= B.Split(Round(B.getWidth/5),B.getHeight);
+      SetLength(TBA[I],5);
+      If Not IsLoggedIn Then
+        Exit;
+    End;
+    SetLength(ATPA,0);
+    Result:=[TBA[0][0],TBA[0][1],TBA[0][2],TBA[0][3],TBA[0][4],TBA[1][0],TBA[1][1],TBA[1][2],TBA[1][3],TBA[1][4],TBA[2][0],TBA[2][1],TBA[2][2],TBA[2][3],TBA[2][4]];
+  //  CheckX:=GridSet[0].X1;
+  //  print('CheckX: '+tostr(checkx));
+    SetLength(TBA,0);
+  End;
+
+ // Result:=GridSet;
+ // print('CheckX: '+tostr(checkx));
+
+  If Debug Then
+    SmartImage.DrawBoxes(Result,false,clred);
 End;
 
 
@@ -278,6 +316,9 @@ Var
   TBA: TBoxArray;
   P: TPoint;
 Begin
+  If Not IsLoggedIn Then
+    Exit;
+
   findColorsTolerance(tpa, 2368542, SearchBox, 5,colorSetting(2,10.00,1.08));    //blackpart
 
   ATPA := TPA.Cluster(15,25);
@@ -296,6 +337,9 @@ Begin
 
   For I:= 0 To H Do
   Begin
+    If Not IsLoggedIn Then
+      Break;
+
     Print('BlackPlant Length: '+ToStr(Length(atpa[i]))+' for I:= '+ToStr(I));
 
     PlantBox := GetTPABounds(ATPA[I]);
@@ -333,7 +377,7 @@ Begin
         If (IsMouseOverText(['Cure','seased','ivid','-plan'])) Then
         Begin
           GetMousePos(X,Y);
-          Print('Found chest, Clicking.');
+          Print('Found plant, Clicking.');
           if (random(5) = 1) then
           begin
             fastClick(MOUSE_RIGHT);
@@ -361,6 +405,9 @@ Function PlantPresent(SearchBox: TBox): Boolean;
 Var
   TPA: TPointArray;
 Begin
+  If Not IsLoggedIn Then
+    Exit;
+
   findColorsTolerance(tpa, 3624517, SearchBox, 8,colorSetting(2,0.38,0.70));    //GREEN
 
   If (Length(TPA) > 7) Then
@@ -379,6 +426,9 @@ Var
   T: TTimeMarker;
   B: TBox;
 Begin
+  If Not IsLoggedIn Then
+    Exit;
+
   If PlantPresent(SearchBox) Then
     Exit;
 
@@ -405,6 +455,8 @@ Begin
 
   For I:= 0 To H Do
   Begin
+    If Not IsLoggedIn Then
+      Break;
     Print('Soil Length: '+ToStr(Length(atpa[i]))+' for I:= '+ToStr(I));
     B:=GetTPABounds(ATPA[I]);
     If ((B.X2-B.X1)>6) And ((B.Y2-B.Y1)>6) Then
@@ -413,7 +465,7 @@ Begin
 
     If (IsMouseOverText(['ertili','Empty','atch','patc'])) Then
     Begin
-      Print('Found chest, Clicking.');
+      Print('Found patch, Clicking.');
       if (random(5) = 1) then
       begin
         fastClick(MOUSE_RIGHT);
@@ -449,11 +501,20 @@ Var
   PlantBox: TBoxArray;
   I: Integer;
 Begin
-  PlantBox:=SetGrid;
+  If Not IsLoggedIn Then
+    Exit;
 
+  PlantBox:=SetGrid;
   For I:=0 To High(PlantBox) Do
     If PointInBox(Point(X,Y),PlantBox[I]) Then
       Break;
+
+
+  Print('We think it is in box: '+ToStr(I));
+  Print(ToStr(Point(X,Y)));
+  Print(ToStr(PlantBox[I]));
+  If Debug Then
+    SmartImage.DrawBox(PlantBox[I]);
 
   Case I Of
     0,1,2,4: Result:=[595,369,662,454];
@@ -469,6 +530,8 @@ Function CureLivid(Strain: Tbox): Boolean;
 Var
   T:TTimeMarker;
 Begin
+  If Not IsLoggedIn Then
+    Exit;
   MouseBox(Strain,Mouse_Left);
   T.Start;
   Repeat
@@ -493,11 +556,14 @@ Function CastSpells: Boolean;
 Var
   CheckPattern: TIntegerArray;
   FarmGrid: TBoxArray;
-  I,L,X,Y: Integer;
+  I,L,X,X2,Y,Y2: Integer;
   Closest: Boolean;
 Label
   Rpt;
 Begin
+  If Not IsLoggedIn Then
+    Exit;
+
   Case GaussRangeInt(0,75) Of
     0..15: CheckPattern:=CHECK_PATTERN_SNAKE;
     16..29: CheckPattern:=CHECK_PATTERN_REGULAR;
@@ -513,11 +579,15 @@ Begin
   If (Closest) Then
   Begin
     Rpt:
+    If Not IsLoggedIn Then
+      Exit;
     SmartImage.Clear;
-    GetMousePos(X,Y);
-    MidSortBoxArrayFrom(FarmGrid,Point(X,Y));
+    GetMousePos(X2,Y2);
+    MidSortBoxArrayFrom(FarmGrid,Point(X2,Y2));
     For I:=0 To High(FarmGrid) Do
     Begin
+      If Not IsLoggedIn Then
+        Exit;
       If Debug Then
         SmartImage.DrawBox(FarmGrid[I]);
       Wait(Random(100));
@@ -537,6 +607,8 @@ Begin
 
   For I:=0 To (L-1) Do
   Begin
+    If Not IsLoggedIn Then
+      Exit;
     SmartImage.Clear;
     Print(ToStr(CheckPattern[I]-1));
     If Debug Then
@@ -618,7 +690,7 @@ End;
 Procedure Setup;
 Begin
   ClearDebug;
- // AutoUpdateMe;
+  AutoUpdateMe;
 
   SmartEnableDrawing := True;
   SRL_Events[EVENT_ANTIBAN] := @Antiban;
@@ -674,7 +746,16 @@ Begin
   If conversationBox.continue(true, true) Then
     Wait(RandomRange(3000,2000));
 
-  Mainscreen.setZoom(true);
+  SmartImage.DrawBoxes(SetGrid,False,ClRed);
+
+  case MessageBox('Do these boxes cover all the correct plant slots?', 'LividFarmSetup', 3) of
+    mrNo:
+      TerminateScript;
+    mrYes:
+      Writeln('Ok then here we go!');
+    else
+      TerminateScript;
+  end;
 End;
 
 
@@ -701,13 +782,22 @@ Begin
       DisableSRLDebug:=True;
     Timeout.Start;
     FindNormalRandoms;
+    Wait(5000);
   End;
 
-  If Timeout.GetTime>300000 Then
+  If Timeout.GetTime>600000 Then
   Begin
     Writeln('Nothing has happened for too long, shutting down!- took a screenshot, send pic to ashaman (in the logs folder)');
     TakeScreenshot('FarmFail.png');
     TerminateScript;
+  End;
+
+  If Timeout.GetTime>300000 Then
+  Begin
+    Writeln('Nothing has happened for too long, resetting boxes');
+    SetLength(GridSet,0);
+    Mainscreen.setZoom(true);
+    SetGrid;
   End;
 
   If Players[CurrentPlayer].Booleans[0] Then
