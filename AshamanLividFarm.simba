@@ -52,17 +52,14 @@ Program AshamanHerblore;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 Const
-  ScriptVersion = '1.2';
-
-
-  Debug = False;
+  ScriptVersion = '1.3';
 
 Var
   FCount,CCount,MageXP,FarmXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr,CheckX: Integer;
   Timeout,CurrentBTime,ProgTime: TTimeMarker;
   W,X,Y,Z,RealBTime,BreakRounds,TotalBreaks: Integer;
   CHECK_PATTERN_REGULAR, CHECK_PATTERN_BACKWARDS, CHECK_PATTERN_SNAKE, CHECK_PATTERN_UP_DOWN:   TIntegerArray;
-  GridSet: TBoxArray;
+  Debug: Boolean;
 
  {*******************************************************************************
 Function AutoupdateMe;
@@ -188,9 +185,7 @@ begin
       booleans[0] := strToBool(playerForm.players[i].settings[3]);
       booleans[1] := strToBool(playerForm.players[i].settings[4]);
       FindMod := strToBool(playerForm.players[i].settings[5]);
-
-      // any other data types you've decided to use
-      strings[0] := playerForm.players[i].settings[6]; //graphics
+      Debug :=  strToBool(playerForm.players[i].settings[6]);
     end;
 end;
 
@@ -205,15 +200,8 @@ begin
 
     editBoxLabels := ['Minutes until Break', '# of Minutes to Break', 'World']; // edit boxes are created for each array element
     editBoxDefaults := ['600', '15','0'];                                             // optional default values for each edit box; array length must equal editBoxLabel length
-    checkBoxLabels := ['Take Breaks', 'Switch Worlds (After Break)', 'Logout if Mod is near'];        // same as editBoxLabels but for check boxes
-    checkBoxDefaults := ['True','True','True'];
-
-    comboBoxLabels := ['GraphicsMode'];                                                // same as editBoxLabels but for combo boxes (drop down boxes)
-    comboBoxDefaults := ['OpenGL'];
-
-    // this needs to be done for every element in the comboBoxLabels array
-    setLength(comboBoxItems, length(comboBoxLabels));
-    comboBoxItems[0] := ['OpenGL', 'DirectX'];
+    checkBoxLabels := ['Take Breaks', 'Switch Worlds (After Break)', 'Logout if Mod is near', 'Debug Mode'];        // same as editBoxLabels but for check boxes
+    checkBoxDefaults := ['True','True','True','False'];
   end;
 end;
 
@@ -259,41 +247,62 @@ End;
 
 Function SetGrid: TBoxArray;
 Var
-  I,J: Integer;
+  I: Integer;
   TPA: TPointArray;
   ATPA: T2DPointArray;
+  T: TTimeMarker;
   B: TBox;
   TBA: Array of TBoxArray;
+Label
+  Retry;
 Begin
-   If Not IsLoggedIn Then
-    Exit;
-  //If (Length(GridSet) = 0) Or (GridSet[0].X1<>CheckX) Then
+  T.Start;
+  Retry:
+
+  If T.GetTime > 20000 Then
   Begin
-    findColorsTolerance(tpa, 6386047, Mainscreen.GetBounds, 2,colorSetting(2,0.28,0.24));    //border
-
-    ATPA := TPA.Cluster(200,25);
-
-    SetLength(TPA,0);
-    SetLength(TBA,3);
-
-    For I:=0 To Min(High(ATPA),2) Do
-    Begin
-      B:= ATPA[I].GetBounds;
-      B.Edit(-3,-5,+3,+5);
-      TBA[I]:= B.Split(Round(B.getWidth/5),B.getHeight);
-      SetLength(TBA[I],5);
-      If Not IsLoggedIn Then
-        Exit;
-    End;
-    SetLength(ATPA,0);
-    Result:=[TBA[0][0],TBA[0][1],TBA[0][2],TBA[0][3],TBA[0][4],TBA[1][0],TBA[1][1],TBA[1][2],TBA[1][3],TBA[1][4],TBA[2][0],TBA[2][1],TBA[2][2],TBA[2][3],TBA[2][4]];
-  //  CheckX:=GridSet[0].X1;
-  //  print('CheckX: '+tostr(checkx));
-    SetLength(TBA,0);
+    Writeln('Farmgrid messed up, shutting down for now');
+    TerminateScript;
   End;
 
- // Result:=GridSet;
- // print('CheckX: '+tostr(checkx));
+  If Not IsLoggedIn Then
+    Exit;
+
+  findColorsTolerance(tpa, 6057080, Mainscreen.GetBounds, 5,colorSetting(2,0.19,0.19));    //border
+
+  ATPA := TPA.Cluster(200,25);
+
+  SetLength(TPA,0);
+  SetLength(TBA,3);
+
+  If Length(ATPA) < 3 Then
+    Exit;
+
+  For I:=0 To Min(High(ATPA),2) Do
+  Begin
+    B:= ATPA[I].GetBounds;
+    B.Edit(-3,-5,+3,+5);
+    TBA[I]:= B.Split(Round(B.getWidth/5),B.getHeight);
+    If Length(TBA[I]) > 4 Then
+      SetLength(TBA[I],5) Else
+      begin
+        SetLength(TBA,0);
+        SetLength(ATPA,0);
+        GoTo Retry;
+      end;
+    If Not IsLoggedIn Then
+      Exit;
+  End;
+  SetLength(ATPA,0);
+  If Length(TBA) > 2 Then
+    Result:=[TBA[0][0],TBA[0][1],TBA[0][2],TBA[0][3],TBA[0][4],TBA[1][0],TBA[1][1],TBA[1][2],TBA[1][3],TBA[1][4],TBA[2][0],TBA[2][1],TBA[2][2],TBA[2][3],TBA[2][4]] else
+    begin
+      SetLength(TBA,0);
+      SetLength(ATPA,0);
+      GoTo Retry;
+    end;
+  SetLength(TBA,0);
+
 
   If Debug Then
     SmartImage.DrawBoxes(Result,false,clred);
@@ -433,6 +442,8 @@ Begin
     Exit;
 
   SmartImage.Clear;
+  B:=SearchBox;
+  B.Edit(+5,+5,-5,-5);
 
   findColorsTolerance(tpa, 5403777, SearchBox, 4,colorSetting(2,0.09,0.17));    //soil
 
@@ -499,24 +510,24 @@ End;
 Function GetLividType(X, Y: Integer): TBox;
 Var
   PlantBox: TBoxArray;
-  I: Integer;
+  j: Integer;
 Begin
   If Not IsLoggedIn Then
     Exit;
 
   PlantBox:=SetGrid;
-  For I:=0 To High(PlantBox) Do
-    If PointInBox(Point(X,Y),PlantBox[I]) Then
+  For j:=0 To High(PlantBox) Do
+    If PointInBox(Point(X,Y),PlantBox[j]) Then
       Break;
 
 
-  Print('We think it is in box: '+ToStr(I));
+  Print('We think it is in box: '+ToStr(j));
   Print(ToStr(Point(X,Y)));
-  Print(ToStr(PlantBox[I]));
+  Print(ToStr(PlantBox[j]));
   If Debug Then
-    SmartImage.DrawBox(PlantBox[I]);
+    SmartImage.DrawBox(PlantBox[j]);
 
-  Case I Of
+  Case j Of
     0,1,2,4: Result:=[595,369,662,454];
     3,7,8,9: Result:=[695,366,758,454];
     6,10,14: Result:=[599,487,665,570];
@@ -576,6 +587,9 @@ Begin
   L:=Length(CheckPattern);
   FarmGrid:=SetGrid;
 
+  If Length(FarmGrid) <> 15 Then
+    Exit;
+
   If (Closest) Then
   Begin
     Rpt:
@@ -633,7 +647,7 @@ Begin
   SmartImage.Clear;
   I := Random(600);
   Case I Of
-    1: boredHuman(true);
+    1: begin boredHuman(true); MainScreen.SetAngle(MS_ANGLE_HIGH); minimap.setAngle(MM_DIRECTION_NORTH); end;
     2..7:
       Begin
         hoverSkill(Skill_Farming);
@@ -704,8 +718,7 @@ Begin
 
   declarePlayers();
 
-  If Players[CurrentPlayer].strings[0] = 'DirectX' Then
-    smartPlugins := ['OpenGL32.dll','d3d9.dll'];
+  smartPlugins := ['OpenGL32.dll','d3d9.dll'];
 
   SetupSRL;
 
@@ -719,7 +732,8 @@ Begin
   End;
 
   If Not Debug Then
-    DisableSRLDebug:=True;
+    DisableSRLDebug:=True Else
+    DisableSRLDebug:=False;
   ClearDebug;
 
   Minimap.ClickCompass;
@@ -795,7 +809,6 @@ Begin
   If Timeout.GetTime>300000 Then
   Begin
     Writeln('Nothing has happened for too long, resetting boxes');
-    SetLength(GridSet,0);
     Mainscreen.setZoom(true);
     SetGrid;
   End;
