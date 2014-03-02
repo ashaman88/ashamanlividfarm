@@ -52,7 +52,7 @@ Program AshamanHerblore;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 Const
-  ScriptVersion = '1.3';
+  ScriptVersion = '1.4';
 
 Var
   FCount,CCount,MageXP,FarmXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr,CheckX: Integer;
@@ -271,6 +271,8 @@ Begin
   findColorsTolerance(tpa, 6057080, Mainscreen.GetBounds, 5,colorSetting(2,0.19,0.19));    //border
 
   ATPA := TPA.Cluster(200,25);
+  atpa.filterBetween(0,50);
+  atpa.sortFromFirstPoint([50, 50]);
 
   SetLength(TPA,0);
   SetLength(TBA,3);
@@ -280,8 +282,19 @@ Begin
 
   For I:=0 To Min(High(ATPA),2) Do
   Begin
+    print('atpa: ' + tostr(i) + ' length: ' + tostr(length(atpa[i])));
     B:= ATPA[I].GetBounds;
     B.Edit(-3,-5,+3,+5);
+
+    print('atpa: ' + tostr(i) + ' width: ' + tostr(b.x2-b.x1));
+    print('atpa: ' + tostr(i) + ' height: ' + tostr(b.y2-b.y1));
+
+    if (b.x2-b.x1) > 290 then
+      b.x2 := b.x1 + 285;
+
+    if (b.y2-b.y1) >  55 then
+      b.y2 := b.y1 + 50;
+
     TBA[I]:= B.Split(Round(B.getWidth/5),B.getHeight);
     If Length(TBA[I]) > 4 Then
       SetLength(TBA[I],5) Else
@@ -305,7 +318,11 @@ Begin
 
 
   If Debug Then
-    SmartImage.DrawBoxes(Result,false,clred);
+    try
+      SmartImage.DrawBoxes(Result,false,clred);
+    except
+      print('failed to draw boxes');
+    end;
 End;
 
 
@@ -527,6 +544,8 @@ Begin
   If Debug Then
     SmartImage.DrawBox(PlantBox[j]);
 
+  result := [-1, -1, 1, 1];
+
   Case j Of
     0,1,2,4: Result:=[595,369,662,454];
     3,7,8,9: Result:=[695,366,758,454];
@@ -535,23 +554,24 @@ Begin
   End;
 End;
 
-
-
 Function CureLivid(Strain: Tbox): Boolean;
 Var
   T:TTimeMarker;
 Begin
   If Not IsLoggedIn Then
     Exit;
-  MouseBox(Strain,Mouse_Left);
-  T.Start;
-  Repeat
-    Result:=Not LividMenu;
-    If Not IsLoggedIn Then
-      Exit;
-    Wait(RandomRange(100,400));
-  Until (Result) Or (T.GetTime>6000);
-  Wait(RandomRange(800,1200));
+  If strain.x1 <> -1 then
+  begin
+    MouseBox(Strain,Mouse_Left);
+    T.Start;
+    Repeat
+      Result:=Not LividMenu;
+      If Not IsLoggedIn Then
+        Exit;
+      Wait(RandomRange(100,400));
+    Until (Result) Or (T.GetTime>6000);
+    Wait(RandomRange(800,1200));
+  end;
   If Result Then
   Begin
     Inc(CCount);
