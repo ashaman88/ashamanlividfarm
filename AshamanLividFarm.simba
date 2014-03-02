@@ -527,10 +527,14 @@ End;
 Function GetLividType(X, Y: Integer): TBox;
 Var
   PlantBox: TBoxArray;
+  b: tBox;
   j: Integer;
 Begin
   If Not IsLoggedIn Then
     Exit;
+
+  if isMouseOverMenuOpen(b, 10) then
+    mouseBox(tabBackpack.getBounds());
 
   PlantBox:=SetGrid;
   For j:=0 To High(PlantBox) Do
