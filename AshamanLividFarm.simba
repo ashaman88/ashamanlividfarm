@@ -52,7 +52,7 @@ Program AshamanHerblore;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 Const
-  ScriptVersion = '1.4';
+  ScriptVersion = '1.5';
 
 Var
   FCount,CCount,MageXP,FarmXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr,CheckX: Integer;
@@ -787,9 +787,9 @@ Begin
   SmartImage.DrawBoxes(SetGrid,False,ClRed);
 
   case MessageBox('Do these boxes cover all the correct plant slots?', 'LividFarmSetup', 3) of
-    mrNo:
+    7:
       TerminateScript;
-    mrYes:
+    6:
       Writeln('Ok then here we go!');
     else
       TerminateScript;
