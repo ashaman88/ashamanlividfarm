@@ -52,14 +52,14 @@ Program AshamanHerblore;
   {$i srl-6/lib/misc/srlplayerform.simba}
 
 Const
-  ScriptVersion = '1.5';
+  ScriptVersion = '1.6';
 
 Var
   FCount,CCount,MageXP,FarmXP,FCPH,CCPH,MXPH,FXPH,Bir,Bfr,CheckX: Integer;
   Timeout,CurrentBTime,ProgTime: TTimeMarker;
   W,X,Y,Z,RealBTime,BreakRounds,TotalBreaks: Integer;
   CHECK_PATTERN_REGULAR, CHECK_PATTERN_BACKWARDS, CHECK_PATTERN_SNAKE, CHECK_PATTERN_UP_DOWN:   TIntegerArray;
-  Debug: Boolean;
+  Debug, lclick: Boolean;
 
  {*******************************************************************************
 Function AutoupdateMe;
@@ -98,7 +98,7 @@ Begin
     WriteLn('You have the latest version of the script!');
 End;
 
-Function FindNormalRandoms: Boolean;
+function findNormalRandoms: boolean;
 Begin
   Result:= ExitSquealOfFortune Or ClaimSpinTicket;
 End;
@@ -179,6 +179,7 @@ begin
       integers[1] := strToInt(playerForm.players[i].settings[1]);  //minutes to break
 
       World :=  strToInt(playerForm.players[i].settings[2]);                    //world
+      ismember := true;
 
 
       // booleans
@@ -186,6 +187,7 @@ begin
       booleans[1] := strToBool(playerForm.players[i].settings[4]);
       FindMod := strToBool(playerForm.players[i].settings[5]);
       Debug :=  strToBool(playerForm.players[i].settings[6]);
+      lclick := strToBool(playerForm.players[i].settings[7]);
     end;
 end;
 
@@ -200,8 +202,8 @@ begin
 
     editBoxLabels := ['Minutes until Break', '# of Minutes to Break', 'World']; // edit boxes are created for each array element
     editBoxDefaults := ['600', '15','0'];                                             // optional default values for each edit box; array length must equal editBoxLabel length
-    checkBoxLabels := ['Take Breaks', 'Switch Worlds (After Break)', 'Logout if Mod is near', 'Debug Mode'];        // same as editBoxLabels but for check boxes
-    checkBoxDefaults := ['True','True','True','False'];
+    checkBoxLabels := ['Take Breaks', 'Switch Worlds (After Break)', 'Logout if Mod is near', 'Debug Mode', 'LeftClick'];        // same as editBoxLabels but for check boxes
+    checkBoxDefaults := ['True','True','True','False', 'False'];
   end;
 end;
 
@@ -245,9 +247,9 @@ Begin
     End;
 End;
 
-Function SetGrid: TBoxArray;
-Var
-  I: Integer;
+function setGrid: TBoxArray;
+var
+  i: Integer;
   TPA: TPointArray;
   ATPA: T2DPointArray;
   T: TTimeMarker;
@@ -256,6 +258,8 @@ Var
 Label
   Retry;
 Begin
+  if debug then
+    print('entering setgrid');
   T.Start;
   Retry:
 
@@ -268,6 +272,9 @@ Begin
   If Not IsLoggedIn Then
     Exit;
 
+  if debug then
+    print('searching for colors');
+
   findColorsTolerance(tpa, 6057080, Mainscreen.GetBounds, 5,colorSetting(2,0.19,0.19));    //border
 
   ATPA := TPA.Cluster(200,25);
@@ -278,7 +285,11 @@ Begin
   SetLength(TBA,3);
 
   If Length(ATPA) < 3 Then
+  begin
+    if debug then
+      print('not enough colors');
     Exit;
+  end;
 
   For I:=0 To Min(High(ATPA),2) Do
   Begin
@@ -299,6 +310,7 @@ Begin
     If Length(TBA[I]) > 4 Then
       SetLength(TBA[I],5) Else
       begin
+        print('not boxes');
         SetLength(TBA,0);
         SetLength(ATPA,0);
         GoTo Retry;
@@ -307,9 +319,11 @@ Begin
       Exit;
   End;
   SetLength(ATPA,0);
+  print('setting farmgrid');
   If Length(TBA) > 2 Then
     Result:=[TBA[0][0],TBA[0][1],TBA[0][2],TBA[0][3],TBA[0][4],TBA[1][0],TBA[1][1],TBA[1][2],TBA[1][3],TBA[1][4],TBA[2][0],TBA[2][1],TBA[2][2],TBA[2][3],TBA[2][4]] else
     begin
+      print('not enough boxes 2');
       SetLength(TBA,0);
       SetLength(ATPA,0);
       GoTo Retry;
@@ -324,6 +338,12 @@ Begin
       print('failed to draw boxes');
     end;
 End;
+
+procedure failsafe;
+begin
+  Mouse(Point(289+GaussRangeInt(-10,10),203+GaussRangeInt(-10,10)),Mouse_Left,Mouse_Human);
+  Wait(GaussRangeInt(1000,3000));
+end;
 
 
 Function LividMenu: Boolean;
@@ -342,6 +362,7 @@ Var
   TBA: TBoxArray;
   P: TPoint;
 Begin
+  print('entering findlivid');
   If Not IsLoggedIn Then
     Exit;
 
@@ -404,14 +425,15 @@ Begin
         Begin
           GetMousePos(X,Y);
           Print('Found plant, Clicking.');
-          if (random(5) = 1) then
+          if (random(5) = 1) or (not lclick) then
           begin
             fastClick(MOUSE_RIGHT);
 
             if (not chooseOption.select(['Cure', '-pl', 'plant'])) then
               continue;
           end else
-            fastClick(MOUSE_LEFT);
+            if not didclick(true) then
+              failsafe;
 
           result := waitFunc(@LividMenu,100,(randomRange(2500, 4000)));
           if result then
@@ -462,7 +484,7 @@ Begin
   B:=SearchBox;
   B.Edit(+5,+5,-5,-5);
 
-  findColorsTolerance(tpa, 5403777, SearchBox, 4,colorSetting(2,0.09,0.17));    //soil
+  findColorsTolerance(tpa, 5206141, SearchBox, 5,colorSetting(2,0.06,0.11));    //soil
 
   ATPA := TPA.Cluster(4,4);
 
@@ -494,14 +516,15 @@ Begin
     If (IsMouseOverText(['ertili','Empty','atch','patc'])) Then
     Begin
       Print('Found patch, Clicking.');
-      if (random(5) = 1) then
+      if (random(5) = 1) or (not lclick) then
       begin
         fastClick(MOUSE_RIGHT);
 
         if (not chooseOption.select(['ertili', 'Fert', 'ilise'])) then
           continue;
       end else
-        fastClick(MOUSE_LEFT);
+        if not didclick(true) then
+          failsafe;
 
       T.Start;
       Repeat
@@ -530,6 +553,8 @@ Var
   b: tBox;
   j: Integer;
 Begin
+  result := [-1, -1, 1, 1];
+
   If Not IsLoggedIn Then
     Exit;
 
@@ -537,6 +562,10 @@ Begin
     mouseBox(tabBackpack.getBounds());
 
   PlantBox:=SetGrid;
+
+  If Length(PlantBox) <> 15 Then
+    Exit;
+
   For j:=0 To High(PlantBox) Do
     If PointInBox(Point(X,Y),PlantBox[j]) Then
       Break;
@@ -547,8 +576,6 @@ Begin
   Print(ToStr(PlantBox[j]));
   If Debug Then
     SmartImage.DrawBox(PlantBox[j]);
-
-  result := [-1, -1, 1, 1];
 
   Case j Of
     0,1,2,4: Result:=[595,369,662,454];
